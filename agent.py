@@ -6,6 +6,7 @@ AI Agent для помощи в написании кода
 import os
 import json
 import yaml
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Optional, Generator
@@ -17,7 +18,19 @@ from dotenv import load_dotenv
 # Загружаем переменные окружения
 load_dotenv()
 
-console = Console()
+# Импорт MCP инструментов
+try:
+    from mcp_tools import MCPToolManager, format_tools_for_prompt
+    MCP_AVAILABLE = True
+except ImportError:
+    MCP_AVAILABLE = False
+    console = Console()
+    console.print("[yellow]MCP tools not available[/yellow]")
+
+if not MCP_AVAILABLE:
+    console = Console()
+else:
+    console = Console()
 
 
 class CodeAgent:
@@ -31,6 +44,14 @@ class CodeAgent:
         self.history: List[Dict] = []
         self.history_path = Path(self.config['agent']['history_path'])
         self.history_path.mkdir(parents=True, exist_ok=True)
+        
+        # Инициализация MCP инструментов
+        self.use_mcp = self.config.get('mcp', {}).get('enabled', True) and MCP_AVAILABLE
+        if self.use_mcp:
+            self.mcp_tools = MCPToolManager()
+            console.print(f"[green]MCP инструменты загружены: {len(self.mcp_tools.list_tools())} доступно[/green]")
+        else:
+            self.mcp_tools = None
         
         # Инициализация провайдера
         if self.provider == "ollama":
@@ -219,6 +240,13 @@ class CodeAgent:
         
         # Системный промпт
         system_prompt = self.config['agent'].get('system_prompt', '')
+        
+        # Добавляем информацию о MCP инструментах в системный промпт
+        if self.use_mcp and self.mcp_tools:
+            tools_info = format_tools_for_prompt(self.mcp_tools)
+            if tools_info:
+                system_prompt += "\n\n" + tools_info
+        
         if system_prompt:
             messages.append({
                 'role': 'system',
@@ -486,8 +514,53 @@ class CodeAgent:
         formatted.append("Assistant: ")
         return "\n".join(formatted)
     
-    def ask(self, prompt: str, stream: bool = True) -> Generator[str, None, None]:
-        """Задать вопрос агенту"""
+    def _parse_tool_calls(self, text: str) -> List[Dict]:
+        """Парсинг вызовов инструментов из текста"""
+        tool_calls = []
+        # Ищем паттерн TOOL_CALL: tool_name {json_params}
+        pattern = r'TOOL_CALL:\s*(\w+)\s*(\{.*?\})'
+        matches = re.finditer(pattern, text, re.DOTALL)
+        
+        for match in matches:
+            tool_name = match.group(1)
+            params_str = match.group(2)
+            try:
+                params = json.loads(params_str)
+                tool_calls.append({
+                    'tool': tool_name,
+                    'params': params
+                })
+            except json.JSONDecodeError:
+                console.print(f"[yellow]Не удалось распарсить параметры для {tool_name}[/yellow]")
+        
+        return tool_calls
+    
+    def _execute_tool_calls(self, tool_calls: List[Dict]) -> str:
+        """Выполнение вызовов инструментов"""
+        results = []
+        
+        for call in tool_calls:
+            tool_name = call['tool']
+            params = call['params']
+            
+            if not self.use_mcp or not self.mcp_tools:
+                results.append(f"Инструмент {tool_name} недоступен (MCP отключен)")
+                continue
+            
+            console.print(f"[cyan]Выполняю инструмент: {tool_name}[/cyan]")
+            result = self.mcp_tools.execute_tool(tool_name, **params)
+            
+            if 'error' in result:
+                results.append(f"Ошибка {tool_name}: {result['error']}")
+            else:
+                # Форматируем результат для модели
+                result_str = json.dumps(result, ensure_ascii=False, indent=2)
+                results.append(f"Результат {tool_name}:\n{result_str}")
+        
+        return "\n\n".join(results)
+    
+    def ask(self, prompt: str, stream: bool = True, max_iterations: int = 5) -> Generator[str, None, None]:
+        """Задать вопрос агенту с поддержкой MCP инструментов"""
         messages = self._build_messages(prompt)
         
         # Сохраняем запрос пользователя
@@ -497,21 +570,53 @@ class CodeAgent:
             'timestamp': datetime.now().isoformat()
         })
         
-        # Получаем ответ
+        iteration = 0
         full_response = ""
-        if self.provider == "ollama":
-            generator = self._call_ollama(messages, stream=stream)
-        elif self.provider == "lmstudio":
-            generator = self._call_lmstudio(messages, stream=stream)
-        elif self.provider == "local_transformers":
-            generator = self._call_transformers(messages, stream=stream)
-        else:
-            raise ValueError(f"Неподдерживаемый провайдер: {self.provider}")
         
-        for chunk in generator:
-            full_response += chunk
-            if stream:
-                yield chunk
+        while iteration < max_iterations:
+            iteration += 1
+            
+            # Получаем ответ
+            current_response = ""
+            if self.provider == "ollama":
+                generator = self._call_ollama(messages, stream=stream)
+            elif self.provider == "lmstudio":
+                generator = self._call_lmstudio(messages, stream=stream)
+            elif self.provider == "local_transformers":
+                generator = self._call_transformers(messages, stream=stream)
+            else:
+                raise ValueError(f"Неподдерживаемый провайдер: {self.provider}")
+            
+            for chunk in generator:
+                current_response += chunk
+                if stream:
+                    yield chunk
+            
+            full_response += current_response
+            
+            # Проверяем наличие вызовов инструментов
+            if self.use_mcp and self.mcp_tools:
+                tool_calls = self._parse_tool_calls(current_response)
+                
+                if tool_calls:
+                    # Выполняем инструменты
+                    tool_results = self._execute_tool_calls(tool_calls)
+                    
+                    # Добавляем результаты в контекст и запрашиваем продолжение
+                    messages.append({
+                        'role': 'assistant',
+                        'content': current_response
+                    })
+                    messages.append({
+                        'role': 'user',
+                        'content': f"Результаты выполнения инструментов:\n{tool_results}\n\nПродолжи ответ, используя эти результаты."
+                    })
+                    
+                    # Продолжаем цикл для получения финального ответа
+                    continue
+            
+            # Нет вызовов инструментов или они уже обработаны - завершаем
+            break
         
         # Сохраняем ответ
         self.history.append({
