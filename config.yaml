@@ -1,0 +1,95 @@
+agent:
+  history_path: ./history
+  max_context_length: 4096  # Уменьшено для моделей с маленьким контекстом (qwen3-vl-2b-instruct)
+  save_history: true
+  load_project_context: true
+  project_root: .
+  # Для моделей с большим контекстом (8K+) можно увеличить до 8192
+  system_prompt: 'Ты опытный AI-ассистент для программирования. Твоя задача - помогать
+    пользователю писать качественный код и работать с его проектом.
+
+
+    Правила:
+
+    1. Всегда предоставляй полный, рабочий код
+
+    2. Добавляй комментарии там, где это необходимо
+
+    3. Следуй best practices для выбранного языка
+
+    4. Если код неполный, объясни что нужно добавить
+
+    5. Предлагай оптимизации и улучшения
+
+    6. Отвечай на русском языке, если пользователь пишет на русском
+
+    7. Ты имеешь доступ к контексту проекта - используй его для понимания структуры
+    и работы с файлами
+
+    8. Если нужно прочитать файл, выполнить команду или получить информацию - используй
+    доступные инструменты
+
+    9. Для использования инструмента укажи: TOOL_CALL: <tool_name> {"param": "value"}
+
+    10. После получения результатов инструментов - используй их в своем ответе
+
+    11. При работе с проектом учитывай его структуру, стиль кода и существующие паттерны
+
+    12. Если пользователь спрашивает о проекте, используй информацию из контекста проекта
+
+    '
+gpu:
+  max_memory: 24
+  use_4bit: false
+  use_8bit: false
+  use_flash_attention: true
+  use_gpu: true
+lmstudio:
+  base_url: http://localhost:1234
+  timeout: 300
+mcp:
+  enabled: true
+  max_iterations: 5
+model:
+  device: cuda
+  generation:
+    max_tokens: 4096
+    repetition_penalty: 1.1
+    temperature: 0.2
+    top_k: 40
+    top_p: 0.95
+  model_name: qwen3-vl-2b-instruct
+  model_path: ''
+  provider: lmstudio
+ollama:
+  base_url: http://localhost:11434
+  timeout: 300
+# Примеры конфигурации для других провайдеров:
+# 
+# OpenAI:
+# openai:
+#   base_url: https://api.openai.com/v1
+#   api_key: sk-...  # Или используйте переменную окружения OPENAI_API_KEY
+#   timeout: 300
+# 
+# Anthropic (Claude):
+# anthropic:
+#   base_url: https://api.anthropic.com/v1
+#   api_key: sk-ant-...  # Или используйте переменную окружения ANTHROPIC_API_KEY
+#   timeout: 300
+# 
+# Кастомный OpenAI-совместимый провайдер:
+# custom:
+#   base_url: https://your-api-provider.com/v1
+#   api_key: your-api-key  # Или используйте переменную окружение CUSTOM_API_KEY
+#   timeout: 300
+# 
+# Для использования этих провайдеров измените:
+# model:
+#   provider: openai  # или anthropic, или custom
+#   model_name: gpt-4  # или claude-3-opus, или любая модель вашего провайдера
+ui:
+  cli_theme: dark
+  mode: both
+  web_host: 127.0.0.1
+  web_port: 8000

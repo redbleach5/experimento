@@ -1,0 +1,708 @@
+/* ============================================
+   Стили для IDE
+   ============================================ */
+
+/* IDE использует общий стиль body из common.css */
+.ide-body {
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+}
+
+.main-container {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+/* ============================================
+   Sidebar (Файловый браузер)
+   ============================================ */
+
+.sidebar {
+    width: 280px;
+    min-width: 200px;
+    max-width: 600px;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: border-color 0.3s ease;
+    position: relative;
+}
+
+.resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 4px;
+    height: 100%;
+    cursor: col-resize;
+    background: transparent;
+    z-index: 100;
+    transition: background 0.2s ease;
+}
+
+.resize-handle:hover {
+    background: var(--accent);
+}
+
+.resize-handle.active {
+    background: var(--accent);
+}
+
+.sidebar-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.sidebar-header button {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+    transition: var(--transition);
+    box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
+}
+
+.sidebar-header button:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+}
+
+.file-tree {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 8px;
+    position: relative;
+}
+
+.file-item {
+    padding: 4px 4px 4px 0;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    transition: all 0.15s ease;
+    margin-bottom: 0;
+    color: var(--fg-main);
+    user-select: none;
+    position: relative;
+    min-height: 22px;
+}
+
+.file-item:hover {
+    background: var(--bg-tertiary);
+    color: var(--accent);
+}
+
+.file-item.selected {
+    background: var(--accent);
+    color: white;
+}
+
+.file-item span {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-item .expand-icon {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    transition: transform 0.2s ease, color 0.2s ease;
+    opacity: 0.8;
+    cursor: pointer;
+    margin-right: 4px;
+    flex-shrink: 0;
+    color: var(--fg-secondary);
+    background: transparent;
+    border: none;
+    padding: 0;
+}
+
+.file-item .expand-icon:hover {
+    background: transparent;
+    opacity: 1;
+    color: var(--accent);
+}
+
+.file-item.expanded .expand-icon {
+    transform: rotate(90deg);
+}
+
+.file-item.has-children .expand-icon {
+    opacity: 1;
+    font-weight: bold;
+}
+
+.file-children {
+    margin-left: 0;
+    padding-left: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    position: relative;
+}
+
+.file-children.hidden {
+    display: none;
+}
+
+.file-tree-item {
+    position: relative;
+    margin-left: 0;
+}
+
+.tree-container {
+    position: relative;
+}
+
+/* Вложенность файлов */
+.file-tree-item[data-depth="0"] .file-item { padding-left: 0; }
+.file-tree-item[data-depth="1"] .file-item { padding-left: 20px; }
+.file-tree-item[data-depth="2"] .file-item { padding-left: 40px; }
+.file-tree-item[data-depth="3"] .file-item { padding-left: 60px; }
+.file-tree-item[data-depth="4"] .file-item { padding-left: 80px; }
+.file-tree-item[data-depth="5"] .file-item { padding-left: 100px; }
+
+.file-tree-item[data-depth="1"] .file-item::after,
+.file-tree-item[data-depth="2"] .file-item::after,
+.file-tree-item[data-depth="3"] .file-item::after,
+.file-tree-item[data-depth="4"] .file-item::after,
+.file-tree-item[data-depth="5"] .file-item::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--accent);
+    opacity: 0.6;
+    z-index: 0;
+}
+
+.file-tree-item[data-depth="1"] .file-item::after { left: 0; }
+.file-tree-item[data-depth="2"] .file-item::after { left: 20px; }
+.file-tree-item[data-depth="3"] .file-item::after { left: 40px; }
+.file-tree-item[data-depth="4"] .file-item::after { left: 60px; }
+.file-tree-item[data-depth="5"] .file-item::after { left: 80px; }
+
+[data-theme="dark"] .file-tree-item[data-depth] .file-item::after {
+    opacity: 0.8;
+}
+
+.file-tree-item[data-depth] .file-item::after {
+    box-shadow: 0 0 2px rgba(0, 122, 255, 0.3);
+}
+
+.file-item.has-children {
+    font-weight: 500;
+}
+
+.refresh-btn {
+    position: sticky;
+    top: 0;
+    float: right;
+    background: var(--bg-tertiary);
+    border: none;
+    color: var(--fg-main);
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: var(--transition);
+    opacity: 0.7;
+    z-index: 10;
+    margin-bottom: 8px;
+}
+
+.refresh-btn:hover {
+    opacity: 1;
+    background: var(--border);
+}
+
+.refresh-btn.refreshing {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.current-path {
+    font-size: 12px;
+    color: var(--accent);
+    margin-top: 8px;
+    padding: 8px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    transition: all 0.3s ease;
+}
+
+/* ============================================
+   Редактор
+   ============================================ */
+
+.editor-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.tabs {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    overflow-x: auto;
+    min-height: 44px;
+    transition: all 0.3s ease;
+}
+
+.tab {
+    padding: 12px 20px;
+    background: var(--bg-tertiary);
+    border-right: 1px solid var(--border);
+    cursor: pointer;
+    white-space: nowrap;
+    font-size: 13px;
+    color: var(--fg-main);
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tab:hover {
+    background: var(--border);
+}
+
+.tab.active {
+    background: var(--bg-secondary);
+    color: var(--accent);
+    border-bottom: 2px solid var(--accent);
+    font-weight: 600;
+}
+
+.tab .close {
+    margin-left: 4px;
+    opacity: 0.6;
+    font-size: 18px;
+    line-height: 1;
+    transition: all 0.15s ease;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+}
+
+.tab .close:hover {
+    opacity: 1;
+    background: var(--error);
+    color: white;
+}
+
+.editor-wrapper {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+.save-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    padding: 10px 20px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+    z-index: 10;
+    transition: var(--transition);
+    box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
+}
+
+.save-btn:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+}
+
+/* CodeMirror стили */
+.CodeMirror {
+    height: 100% !important;
+    font-size: 14px;
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    background: var(--bg-secondary) !important;
+    color: var(--fg-main) !important;
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+.CodeMirror-gutters {
+    background: var(--bg-main) !important;
+    border-right: 1px solid var(--border) !important;
+    transition: all 0.3s ease;
+}
+
+.CodeMirror-linenumber {
+    color: var(--fg-secondary) !important;
+}
+
+.CodeMirror-cursor {
+    border-left: 2px solid var(--accent) !important;
+}
+
+.CodeMirror-selected {
+    background: var(--bg-tertiary) !important;
+}
+
+[data-theme="dark"] .CodeMirror {
+    background: #272822 !important;
+}
+
+[data-theme="dark"] .CodeMirror-gutters {
+    background: #272822 !important;
+    border-right: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .CodeMirror-linenumber {
+    color: #75715e !important;
+}
+
+[data-theme="dark"] .CodeMirror-cursor {
+    border-left: 2px solid var(--accent) !important;
+}
+
+[data-theme="dark"] .CodeMirror-selected {
+    background: rgba(10, 132, 255, 0.3) !important;
+}
+
+.CodeMirror .cm-keyword { color: var(--accent) !important; font-weight: 600; }
+.CodeMirror .cm-string { color: var(--success) !important; }
+.CodeMirror .cm-comment { color: var(--fg-secondary) !important; font-style: italic; }
+.CodeMirror .cm-number { color: var(--warning) !important; }
+.CodeMirror .cm-def { color: #AF52DE !important; }
+.CodeMirror .cm-variable { color: var(--fg-main) !important; }
+.CodeMirror .cm-operator { color: var(--fg-main) !important; }
+
+/* ============================================
+   Панель чата в IDE
+   ============================================ */
+
+.chat-panel {
+    width: 380px;
+    min-width: 250px;
+    max-width: 800px;
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    transition: border-color 0.3s ease;
+    position: relative;
+}
+
+.chat-panel .resize-handle {
+    left: 0;
+    right: auto;
+}
+
+.chat-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    font-size: 14px;
+    background: var(--bg-secondary);
+    color: var(--fg-main);
+    transition: all 0.3s ease;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 16px;
+    word-wrap: break-word;
+    line-height: 1.6;
+}
+
+.chat-message {
+    margin-bottom: 16px;
+    padding: 12px;
+    border-radius: var(--radius-md);
+    background: var(--bg-tertiary);
+    color: var(--fg-main);
+    animation: fadeIn 0.3s ease;
+    transition: all 0.3s ease;
+}
+
+.chat-message strong {
+    color: var(--accent);
+    font-weight: 600;
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+}
+
+.chat-message code {
+    background: var(--bg-secondary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    font-size: 12px;
+    color: var(--fg-main);
+    border: 1px solid var(--border);
+    transition: all 0.3s ease;
+}
+
+.chat-message pre {
+    background: var(--bg-secondary);
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+    margin: 8px 0;
+    border: 1px solid var(--border);
+    color: var(--fg-main);
+    transition: all 0.3s ease;
+}
+
+.chat-message pre code {
+    background: transparent;
+    padding: 0;
+    border: none;
+    font-size: 13px;
+    color: inherit;
+}
+
+.chat-input {
+    border-top: 1px solid var(--border);
+    padding: 16px;
+    background: var(--bg-secondary);
+    transition: all 0.3s ease;
+}
+
+.chat-input textarea {
+    width: 100%;
+    min-height: 90px;
+    background: var(--bg-tertiary);
+    color: var(--fg-main);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    resize: vertical;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.5;
+    transition: var(--transition);
+}
+
+.chat-input textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--bg-secondary);
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+}
+
+.chat-input textarea::placeholder {
+    color: var(--fg-secondary);
+}
+
+.chat-input button {
+    margin-top: 12px;
+    padding: 12px 20px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    width: 100%;
+    font-weight: 600;
+    font-size: 13px;
+    transition: var(--transition);
+    box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
+}
+
+.chat-input button:hover:not(:disabled) {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+}
+
+.chat-input button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ============================================
+   Модальные окна
+   ============================================ */
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+}
+
+.modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    padding: 24px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 8px 32px var(--shadow);
+    animation: modalFadeIn 0.3s ease;
+    transition: all 0.3s ease;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.modal-header {
+    margin-bottom: 16px;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--fg-main);
+}
+
+.modal-input {
+    width: 100%;
+    padding: 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--fg-main);
+    font-size: 14px;
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    margin-bottom: 16px;
+    transition: var(--transition);
+}
+
+.modal-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--bg-secondary);
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.modal-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 13px;
+    transition: var(--transition);
+}
+
+.modal-btn-primary {
+    background: var(--accent);
+    color: white;
+}
+
+.modal-btn-primary:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+}
+
+.modal-btn-secondary {
+    background: var(--bg-tertiary);
+    color: var(--fg-main);
+    border: 1px solid var(--border);
+}
+
+.modal-btn-secondary:hover {
+    background: var(--border);
+}
+
+.path-hint {
+    font-size: 12px;
+    color: var(--fg-secondary);
+    margin-bottom: 8px;
+}
+
+/* ============================================
+   Навигация в IDE
+   ============================================ */
+
+.mode-toggle {
+    display: flex;
+    gap: 8px;
+}
+
+.mode-btn {
+    padding: 8px 16px;
+    background: var(--bg-tertiary);
+    border: none;
+    color: var(--fg-main);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    transition: var(--transition);
+    text-decoration: none;
+}
+
+.mode-btn:hover {
+    background: var(--border);
+}
+
+.mode-btn.active {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
+}
+

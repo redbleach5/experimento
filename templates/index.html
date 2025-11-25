@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Code Agent - Чат</title>
+    
+    <!-- Внешние библиотеки -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" media="(prefers-color-scheme: dark)">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    
+    <!-- Стили -->
+    <link rel="stylesheet" href="/static/css/common.css">
+    <link rel="stylesheet" href="/static/css/chat.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Заголовок -->
+        <header class="app-header">
+            <div class="header-content">
+                <h1 class="app-title">
+                    <span class="title-icon">🤖</span>
+                    <span class="title-text">AI Code Agent</span>
+                </h1>
+                <div class="header-actions">
+                    <button class="icon-btn" id="searchToggle" title="Поиск в чате (Ctrl+F)">
+                        <span>🔍</span>
+                    </button>
+                    <button class="icon-btn" id="themeToggle" title="Переключить тему (Ctrl+/)">
+                        <span class="theme-icon">🌙</span>
+                    </button>
+                    <nav class="header-nav">
+                        <a href="/ide" class="nav-btn">
+                            <span>💻</span>
+                            <span>IDE</span>
+                        </a>
+                        <a href="/settings" class="nav-btn">
+                            <span>⚙️</span>
+                            <span>Настройки</span>
+                        </a>
+                    </nav>
+                    <div class="status-indicator">
+                        <span class="status-dot" id="statusDot"></span>
+                        <span class="status-text" id="statusText">Готов</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Поиск в чате -->
+        <div class="search-bar" id="searchBar" style="display: none;">
+            <div class="search-container">
+                <input type="text" id="searchInput" class="search-input" placeholder="Поиск в сообщениях... (Enter для поиска, Esc для закрытия)">
+                <button class="search-btn" id="searchPrev" title="Предыдущее">▲</button>
+                <button class="search-btn" id="searchNext" title="Следующее">▼</button>
+                <span class="search-count" id="searchCount"></span>
+                <button class="search-close" id="searchClose" title="Закрыть">×</button>
+            </div>
+        </div>
+
+        <!-- Основной контент -->
+        <main class="chat-main">
+            <div class="chat-messages" id="chatMessages">
+                <div class="welcome-message">
+                    <div class="welcome-icon">👋</div>
+                    <h2>Добро пожаловать!</h2>
+                    <p>Я ваш AI-ассистент для программирования. Задайте мне вопрос о коде, и я помогу вам!</p>
+                    <div class="welcome-features">
+                        <div class="feature-item">
+                            <span class="feature-icon">✨</span>
+                            <span>Форматирование кода с подсветкой синтаксиса</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">📝</span>
+                            <span>Markdown разметка (заголовки, списки, таблицы)</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">🔍</span>
+                            <span>Анализ и улучшение кода</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Индикатор печати -->
+            <div class="typing-indicator" id="typingIndicator">
+                <div class="typing-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+
+            <!-- Поле ввода -->
+            <div class="chat-input-container">
+                <div class="input-wrapper">
+                    <textarea 
+                        id="userInput" 
+                        class="chat-input"
+                        placeholder="Введите ваш запрос о коде..."
+                        rows="1"
+                    ></textarea>
+                    <div class="input-actions">
+                        <button class="action-btn secondary" id="clearBtn" title="Очистить чат">
+                            <span>🗑️</span>
+                        </button>
+                        <button class="action-btn primary" id="sendBtn" title="Отправить (Enter)">
+                            <span>📤</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="input-hint">
+                    <span>Нажмите Enter для отправки, Shift+Enter для новой строки</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Скрипты -->
+    <script src="/static/js/common.js"></script>
+    <script src="/static/js/websocket.js"></script>
+    
+    <script>
+        // Элементы интерфейса
+        const chatMessages = document.getElementById('chatMessages');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const typingIndicator = document.getElementById('typingIndicator');
+        const statusText = document.getElementById('statusText');
+        const statusDot = document.getElementById('statusDot');
+
+        // WebSocket подключение
+        let ws = null;
+        let accumulatedContent = '';
+        let currentMessageElement = null;
+
+        // Инициализация WebSocket
+        function connectWebSocket() {
+            ws = new WebSocketClient('/ws', {
+                onOpen: () => {
+                    updateStatus('Подключено', 'connected');
+                    console.log('WebSocket подключен');
+                },
+                onMessage: (data) => {
+                    handleWebSocketMessage(data);
+                },
+                onError: (error) => {
+                    console.error('WebSocket ошибка:', error);
+                    updateStatus('Ошибка подключения', 'error');
+                },
+                onClose: () => {
+                    updateStatus('Переподключение...', 'connecting');
+                },
+                onReconnect: (attempts) => {
+                    updateStatus(`Переподключение... (${attempts})`, 'connecting');
+                }
+            });
+            ws.connect();
+        }
+
+        // Обработка сообщений WebSocket
+        function handleWebSocketMessage(data) {
+            if (data.type === 'chunk') {
+                appendToMessage(data.content);
+            } else if (data.type === 'done') {
+                finishMessage();
+            } else if (data.type === 'cleared') {
+                clearChatUI();
+            } else if (data.type === 'error') {
+                showError(data.content);
+                finishMessage();
+            }
+        }
+
+        // Добавление контента к сообщению
+        function appendToMessage(content) {
+            if (!currentMessageElement) {
+                currentMessageElement = createMessageElement('assistant', '');
+                accumulatedContent = '';
+            }
+            accumulatedContent += content;
+            const contentDiv = currentMessageElement.querySelector('.message-content');
+            if (contentDiv) {
+                contentDiv.innerHTML = MarkdownProcessor.parse(accumulatedContent);
+                MarkdownProcessor.highlightCode(contentDiv);
+                scrollToBottom();
+            }
+        }
+
+        // Завершение сообщения
+        function finishMessage() {
+            typingIndicator.classList.remove('active');
+            sendBtn.disabled = false;
+            updateStatus('Готов', 'ready');
+            currentMessageElement = null;
+            accumulatedContent = '';
+        }
+
+        // Создание элемента сообщения
+        function createMessageElement(type, content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message message-${type}`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = type === 'user' ? 'Вы' : 'AI';
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            
+            if (type === 'user') {
+                messageContent.textContent = content;
+            } else {
+                messageContent.innerHTML = MarkdownProcessor.parse(content);
+                MarkdownProcessor.highlightCode(messageContent);
+                // Добавляем кнопки копирования для блоков кода
+                setTimeout(() => {
+                    if (typeof ClipboardManager !== 'undefined') {
+                        messageContent.querySelectorAll('pre').forEach(pre => {
+                            ClipboardManager.showCopyButton(pre);
+                        });
+                    }
+                }, 100);
+            }
+            
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(messageContent);
+            
+            // Удаляем welcome message если есть
+            const welcomeMsg = chatMessages.querySelector('.welcome-message');
+            if (welcomeMsg) {
+                welcomeMsg.remove();
+            }
+            
+            chatMessages.insertBefore(messageDiv, typingIndicator);
+            scrollToBottom();
+            
+            return messageDiv;
+        }
+
+        // Отправка сообщения
+        async function sendMessage() {
+            const prompt = userInput.value.trim();
+            if (!prompt || sendBtn.disabled) return;
+            
+            // Создаем сообщение пользователя
+            createMessageElement('user', prompt);
+            userInput.value = '';
+            adjustTextareaHeight();
+            
+            // Создаем элемент для ответа
+            currentMessageElement = createMessageElement('assistant', '');
+            accumulatedContent = '';
+            
+            // Показываем индикатор печати
+            typingIndicator.classList.add('active');
+            sendBtn.disabled = true;
+            updateStatus('Генерируется ответ...', 'generating');
+            
+            // Отправляем через WebSocket или HTTP
+            if (ws && ws.isConnected()) {
+                ws.send({
+                    type: 'chat',
+                    prompt: prompt
+                });
+            } else {
+                // Fallback на HTTP
+                await sendViaHTTP(prompt);
+            }
+        }
+
+        // Отправка через HTTP (fallback)
+        async function sendViaHTTP(prompt) {
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ prompt, stream: true })
+                });
+                
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                
+                function readChunk() {
+                    reader.read().then(({ done, value }) => {
+                        if (done) {
+                            finishMessage();
+                            return;
+                        }
+                        
+                        const chunk = decoder.decode(value);
+                        const lines = chunk.split('\n');
+                        
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const data = line.slice(6);
+                                if (data === '[DONE]') {
+                                    finishMessage();
+                                    return;
+                                }
+                                
+                                try {
+                                    const json = JSON.parse(data);
+                                    if (json.content) {
+                                        appendToMessage(json.content);
+                                    }
+                                } catch (e) {
+                                    // Игнорируем ошибки парсинга
+                                }
+                            }
+                        }
+                        
+                        readChunk();
+                    });
+                }
+                
+                readChunk();
+            } catch (error) {
+                console.error('Ошибка:', error);
+                showError('Ошибка отправки сообщения');
+                finishMessage();
+            }
+        }
+
+        // Очистка чата
+        function clearChat() {
+            if (confirm('Очистить историю чата?')) {
+                if (ws && ws.isConnected()) {
+                    ws.send({ type: 'clear' });
+                }
+                clearChatUI();
+                
+                // Показываем уведомление
+                if (typeof ToastManager !== 'undefined') {
+                    ToastManager.success('История чата очищена');
+                }
+            }
+        }
+
+        // Очистка UI чата
+        function clearChatUI() {
+            const messages = chatMessages.querySelectorAll('.message');
+            messages.forEach(msg => msg.remove());
+            
+            // Показываем welcome message
+            const welcomeMsg = document.createElement('div');
+            welcomeMsg.className = 'welcome-message';
+            welcomeMsg.innerHTML = `
+                <div class="welcome-icon">👋</div>
+                <h2>Добро пожаловать!</h2>
+                <p>Я ваш AI-ассистент для программирования. Задайте мне вопрос о коде, и я помогу вам!</p>
+            `;
+            chatMessages.insertBefore(welcomeMsg, typingIndicator);
+        }
+
+        // Показ ошибки
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'message message-error';
+            errorDiv.innerHTML = `
+                <div class="message-avatar">⚠️</div>
+                <div class="message-content">${escapeHtml(message)}</div>
+            `;
+            chatMessages.insertBefore(errorDiv, typingIndicator);
+            scrollToBottom();
+            
+            // Показываем toast уведомление
+            if (typeof ToastManager !== 'undefined') {
+                ToastManager.error(message);
+            }
+        }
+
+        // Обновление статуса
+        function updateStatus(text, state) {
+            statusText.textContent = text;
+            statusDot.className = `status-dot status-${state}`;
+            
+            // Добавляем анимацию для статуса
+            statusDot.style.animation = state === 'generating' ? 'pulse 2s infinite' : '';
+        }
+
+        // Прокрутка вниз
+        function scrollToBottom() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Автоматическое изменение размера textarea
+        function adjustTextareaHeight() {
+            userInput.style.height = 'auto';
+            userInput.style.height = Math.min(userInput.scrollHeight, 200) + 'px';
+        }
+
+        // Обработчики событий
+        sendBtn.addEventListener('click', sendMessage);
+        clearBtn.addEventListener('click', clearChat);
+        
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        userInput.addEventListener('input', adjustTextareaHeight);
+
+        // Поиск в чате
+        let searchResults = [];
+        let currentSearchIndex = -1;
+        
+        function initSearch() {
+            const searchBar = document.getElementById('searchBar');
+            const searchInput = document.getElementById('searchInput');
+            const searchToggle = document.getElementById('searchToggle');
+            const searchClose = document.getElementById('searchClose');
+            const searchPrev = document.getElementById('searchPrev');
+            const searchNext = document.getElementById('searchNext');
+            const searchCount = document.getElementById('searchCount');
+            
+            if (!searchBar || !searchInput) return;
+            
+            function performSearch() {
+                const query = searchInput.value.trim().toLowerCase();
+                if (!query) {
+                    clearSearch();
+                    return;
+                }
+                
+                const messages = chatMessages.querySelectorAll('.message-content');
+                searchResults = [];
+                currentSearchIndex = -1;
+                
+                messages.forEach((msg, index) => {
+                    const text = msg.textContent.toLowerCase();
+                    if (text.includes(query)) {
+                        searchResults.push({ element: msg, index });
+                        msg.classList.add('search-highlight');
+                    } else {
+                        msg.classList.remove('search-highlight');
+                    }
+                });
+                
+                if (searchResults.length > 0) {
+                    currentSearchIndex = 0;
+                    highlightSearchResult(0);
+                    searchCount.textContent = `${currentSearchIndex + 1} / ${searchResults.length}`;
+                } else {
+                    searchCount.textContent = 'Не найдено';
+                }
+            }
+            
+            function highlightSearchResult(index) {
+                if (searchResults.length === 0) return;
+                
+                searchResults.forEach((result, i) => {
+                    result.element.classList.toggle('search-active', i === index);
+                });
+                
+                const result = searchResults[index];
+                if (result) {
+                    result.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    searchCount.textContent = `${index + 1} / ${searchResults.length}`;
+                }
+            }
+            
+            function clearSearch() {
+                chatMessages.querySelectorAll('.search-highlight, .search-active').forEach(el => {
+                    el.classList.remove('search-highlight', 'search-active');
+                });
+                searchResults = [];
+                currentSearchIndex = -1;
+                searchCount.textContent = '';
+            }
+            
+            searchToggle?.addEventListener('click', () => {
+                searchBar.style.display = searchBar.style.display === 'none' ? 'block' : 'none';
+                if (searchBar.style.display === 'block') {
+                    searchInput.focus();
+                } else {
+                    clearSearch();
+                }
+            });
+            
+            searchClose?.addEventListener('click', () => {
+                searchBar.style.display = 'none';
+                clearSearch();
+            });
+            
+            searchInput?.addEventListener('input', debounce(performSearch, 300));
+            searchInput?.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (e.ctrlKey || e.metaKey) {
+                        if (currentSearchIndex > 0) {
+                            currentSearchIndex--;
+                            highlightSearchResult(currentSearchIndex);
+                        }
+                    } else {
+                        if (currentSearchIndex < searchResults.length - 1) {
+                            currentSearchIndex++;
+                            highlightSearchResult(currentSearchIndex);
+                        }
+                    }
+                } else if (e.key === 'Escape') {
+                    searchBar.style.display = 'none';
+                    clearSearch();
+                }
+            });
+            
+            searchPrev?.addEventListener('click', () => {
+                if (searchResults.length > 0) {
+                    currentSearchIndex = (currentSearchIndex - 1 + searchResults.length) % searchResults.length;
+                    highlightSearchResult(currentSearchIndex);
+                }
+            });
+            
+            searchNext?.addEventListener('click', () => {
+                if (searchResults.length > 0) {
+                    currentSearchIndex = (currentSearchIndex + 1) % searchResults.length;
+                    highlightSearchResult(currentSearchIndex);
+                }
+            });
+        }
+        
+        // Инициализация при загрузке
+        document.addEventListener('DOMContentLoaded', () => {
+            connectWebSocket();
+            userInput.focus();
+            initSearch();
+            
+            // Регистрируем горячие клавиши
+            if (typeof KeyboardShortcuts !== 'undefined') {
+                KeyboardShortcuts.register('Ctrl+f', (e) => {
+                    e.preventDefault();
+                    const searchBar = document.getElementById('searchBar');
+                    const searchToggle = document.getElementById('searchToggle');
+                    if (searchBar && searchToggle) {
+                        searchToggle.click();
+                    }
+                }, 'Поиск в чате');
+            }
+        });
+    </script>
+</body>
+</html>

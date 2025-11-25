@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Настройки - AI Code Agent</title>
+    
+    <!-- Общие стили -->
+    <link rel="stylesheet" href="/static/css/common.css">
+    
+    <style>
+        /* Специфичные стили для страницы настроек */
+        body {
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .content {
+            padding: 32px;
+        }
+
+        .section {
+            margin-bottom: 32px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--fg-main);
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--fg-main);
+            font-size: 14px;
+        }
+
+        .form-group .description {
+            font-size: 12px;
+            color: var(--fg-secondary);
+            margin-top: 4px;
+            margin-bottom: 8px;
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+            margin-top: 32px;
+        }
+
+        .provider-section {
+            background: var(--bg-tertiary);
+            padding: 16px;
+            border-radius: var(--radius-md);
+            margin-bottom: 16px;
+            border: 1px solid var(--border);
+        }
+
+        .provider-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--accent);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="app-header">
+            <div class="header-content">
+                <h1 class="app-title">
+                    <span class="title-icon">⚙️</span>
+                    <span class="title-text">Настройки</span>
+                </h1>
+                <div class="header-actions">
+                    <button class="icon-btn" id="themeToggle" title="Переключить тему">
+                        <span class="theme-icon">🌙</span>
+                    </button>
+                    <nav class="header-nav">
+                        <a href="/" class="nav-btn">
+                            <span>💬</span>
+                            <span>Чат</span>
+                        </a>
+                        <a href="/ide" class="nav-btn">
+                            <span>💻</span>
+                            <span>IDE</span>
+                        </a>
+                    </nav>
+                </div>
+            </div>
+        </div>
+        
+        <div class="container">
+
+        <div class="content">
+            <div id="alert-container"></div>
+            <div class="loading" id="loading">Загрузка настроек...</div>
+
+            <form id="settings-form" style="display: none;">
+                <!-- Модель -->
+                <div class="section">
+                    <h2 class="section-title">🤖 Модель</h2>
+                    
+                    <div class="form-group">
+                        <label for="provider">Провайдер</label>
+                        <div class="description">Выберите провайдера для работы с AI моделью</div>
+                        <select id="provider" name="model.provider">
+                            <option value="ollama">Ollama (локальные модели)</option>
+                            <option value="lmstudio">LM Studio (локальные модели)</option>
+                            <option value="openai">OpenAI (облачные модели)</option>
+                            <option value="anthropic">Anthropic (Claude)</option>
+                            <option value="custom">Кастомный API</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="model_name">Имя модели</label>
+                        <div class="description">Например: deepseek-coder:6.7b, gpt-4, claude-3-opus</div>
+                        <input type="text" id="model_name" name="model.model_name" placeholder="deepseek-coder:6.7b">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="temperature">Temperature</label>
+                            <div class="description">Креативность ответов (0.0-1.0). Низкое значение = более детерминированные ответы</div>
+                            <input type="number" id="temperature" name="model.generation.temperature" step="0.1" min="0" max="2" placeholder="0.2">
+                        </div>
+                        <div class="form-group">
+                            <label for="max_tokens">Максимум токенов</label>
+                            <div class="description">Максимальная длина ответа</div>
+                            <input type="number" id="max_tokens" name="model.generation.max_tokens" min="1" max="32768" placeholder="4096">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="top_p">Top P</label>
+                            <div class="description">Ядерная выборка (0.0-1.0)</div>
+                            <input type="number" id="top_p" name="model.generation.top_p" step="0.01" min="0" max="1" placeholder="0.95">
+                        </div>
+                        <div class="form-group">
+                            <label for="top_k">Top K</label>
+                            <div class="description">Ограничение количества вариантов</div>
+                            <input type="number" id="top_k" name="model.generation.top_k" min="1" placeholder="40">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="repetition_penalty">Repetition Penalty</label>
+                        <div class="description">Штраф за повторения (1.0 = без штрафа, >1.0 = меньше повторений)</div>
+                        <input type="number" id="repetition_penalty" name="model.generation.repetition_penalty" step="0.1" min="0.5" max="2.0" placeholder="1.1">
+                    </div>
+                </div>
+
+                <!-- Провайдеры (динамически показываются) -->
+                <div class="section" id="ollama-section">
+                    <h2 class="section-title">🦙 Ollama</h2>
+                    <div class="provider-section">
+                        <div class="form-group">
+                            <label for="ollama_url">Base URL</label>
+                            <div class="description">Адрес API Ollama</div>
+                            <input type="url" id="ollama_url" name="ollama.base_url" placeholder="http://localhost:11434">
+                        </div>
+                        <div class="form-group">
+                            <label for="ollama_timeout">Timeout (секунды)</label>
+                            <div class="description">Таймаут для запросов</div>
+                            <input type="number" id="ollama_timeout" name="ollama.timeout" min="1" placeholder="300">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section" id="lmstudio-section">
+                    <h2 class="section-title">🎵 LM Studio</h2>
+                    <div class="provider-section">
+                        <div class="form-group">
+                            <label for="lmstudio_url">Base URL</label>
+                            <div class="description">Адрес API LM Studio</div>
+                            <input type="url" id="lmstudio_url" name="lmstudio.base_url" placeholder="http://localhost:1234">
+                        </div>
+                        <div class="form-group">
+                            <label for="lmstudio_timeout">Timeout (секунды)</label>
+                            <div class="description">Таймаут для запросов</div>
+                            <input type="number" id="lmstudio_timeout" name="lmstudio.timeout" min="1" placeholder="300">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section" id="openai-section">
+                    <h2 class="section-title">🔵 OpenAI</h2>
+                    <div class="provider-section">
+                        <div class="form-group">
+                            <label for="openai_url">Base URL</label>
+                            <div class="description">Адрес API (по умолчанию: https://api.openai.com/v1)</div>
+                            <input type="url" id="openai_url" name="openai.base_url" placeholder="https://api.openai.com/v1">
+                        </div>
+                        <div class="form-group">
+                            <label for="openai_key">API Key</label>
+                            <div class="description">Ваш API ключ (или используйте переменную окружения OPENAI_API_KEY)</div>
+                            <input type="text" id="openai_key" name="openai.api_key" placeholder="sk-...">
+                        </div>
+                        <div class="form-group">
+                            <label for="openai_timeout">Timeout (секунды)</label>
+                            <input type="number" id="openai_timeout" name="openai.timeout" min="1" placeholder="300">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section" id="anthropic-section">
+                    <h2 class="section-title">🧠 Anthropic (Claude)</h2>
+                    <div class="provider-section">
+                        <div class="form-group">
+                            <label for="anthropic_url">Base URL</label>
+                            <div class="description">Адрес API (по умолчанию: https://api.anthropic.com/v1)</div>
+                            <input type="url" id="anthropic_url" name="anthropic.base_url" placeholder="https://api.anthropic.com/v1">
+                        </div>
+                        <div class="form-group">
+                            <label for="anthropic_key">API Key</label>
+                            <div class="description">Ваш API ключ (или используйте переменную окружения ANTHROPIC_API_KEY)</div>
+                            <input type="text" id="anthropic_key" name="anthropic.api_key" placeholder="sk-ant-...">
+                        </div>
+                        <div class="form-group">
+                            <label for="anthropic_timeout">Timeout (секунды)</label>
+                            <input type="number" id="anthropic_timeout" name="anthropic.timeout" min="1" placeholder="300">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Агент -->
+                <div class="section">
+                    <h2 class="section-title">🤖 Агент</h2>
+                    
+                    <div class="form-group">
+                        <label for="max_context_length">Максимальная длина контекста</label>
+                        <div class="description">Максимальное количество токенов в контексте</div>
+                        <input type="number" id="max_context_length" name="agent.max_context_length" min="512" max="32768" placeholder="4096">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="project_root">Корень проекта</label>
+                        <div class="description">Путь к корневой директории проекта</div>
+                        <input type="text" id="project_root" name="agent.project_root" placeholder=".">
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="load_project_context" name="agent.load_project_context">
+                        <label for="load_project_context">Загружать контекст проекта автоматически</label>
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="save_history" name="agent.save_history">
+                        <label for="save_history">Сохранять историю диалогов</label>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="system_prompt">Системный промпт</label>
+                        <div class="description">Инструкции для AI ассистента</div>
+                        <textarea id="system_prompt" name="agent.system_prompt" placeholder="Ты опытный AI-ассистент..."></textarea>
+                    </div>
+                </div>
+
+                <!-- GPU -->
+                <div class="section">
+                    <h2 class="section-title">🎮 GPU</h2>
+                    
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="use_gpu" name="gpu.use_gpu">
+                        <label for="use_gpu">Использовать GPU</label>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="max_memory">Максимальная память GPU (GB)</label>
+                        <div class="description">Максимальный объем памяти GPU для использования</div>
+                        <input type="number" id="max_memory" name="gpu.max_memory" min="1" max="128" placeholder="24">
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="use_4bit" name="gpu.use_4bit">
+                        <label for="use_4bit">Использовать 4-bit квантование</label>
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="use_8bit" name="gpu.use_8bit">
+                        <label for="use_8bit">Использовать 8-bit квантование</label>
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="use_flash_attention" name="gpu.use_flash_attention">
+                        <label for="use_flash_attention">Использовать Flash Attention (ускорение)</label>
+                    </div>
+                </div>
+
+                <!-- MCP -->
+                <div class="section">
+                    <h2 class="section-title">🛠️ MCP Инструменты</h2>
+                    
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="mcp_enabled" name="mcp.enabled">
+                        <label for="mcp_enabled">Включить MCP инструменты</label>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="mcp_max_iterations">Максимум итераций</label>
+                        <div class="description">Максимальное количество итераций использования инструментов</div>
+                        <input type="number" id="mcp_max_iterations" name="mcp.max_iterations" min="1" max="20" placeholder="5">
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button type="button" class="action-btn secondary" onclick="resetForm()">
+                        <span>🔄</span>
+                        <span>Сбросить</span>
+                    </button>
+                    <button type="submit" class="action-btn primary">
+                        <span>💾</span>
+                        <span>Сохранить настройки</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+        </div>
+    </div>
+
+    <!-- Общие скрипты -->
+    <script src="/static/js/common.js"></script>
+    
+    <!-- Скрипт страницы настроек -->
+    <script>
+        let currentConfig = {};
+
+        // Загрузка настроек
+        async function loadSettings() {
+            try {
+                const response = await fetch('/api/settings');
+                const data = await response.json();
+                
+                if (data.error) {
+                    showAlert('Ошибка загрузки: ' + data.error, 'error');
+                    return;
+                }
+
+                currentConfig = data.config || {};
+                populateForm(currentConfig);
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('settings-form').style.display = 'block';
+            } catch (e) {
+                showAlert('Ошибка: ' + e.message, 'error');
+            }
+        }
+
+        // Заполнение формы
+        function populateForm(config) {
+            setNestedValue('provider', config.model?.provider || 'ollama');
+            setNestedValue('model_name', config.model?.model_name || '');
+            setNestedValue('temperature', config.model?.generation?.temperature || 0.2);
+            setNestedValue('max_tokens', config.model?.generation?.max_tokens || 4096);
+            setNestedValue('top_p', config.model?.generation?.top_p || 0.95);
+            setNestedValue('top_k', config.model?.generation?.top_k || 40);
+            setNestedValue('repetition_penalty', config.model?.generation?.repetition_penalty || 1.1);
+
+            setNestedValue('ollama_url', config.ollama?.base_url || 'http://localhost:11434');
+            setNestedValue('ollama_timeout', config.ollama?.timeout || 300);
+            setNestedValue('lmstudio_url', config.lmstudio?.base_url || 'http://localhost:1234');
+            setNestedValue('lmstudio_timeout', config.lmstudio?.timeout || 300);
+            setNestedValue('openai_url', config.openai?.base_url || 'https://api.openai.com/v1');
+            setNestedValue('openai_key', config.openai?.api_key || '');
+            setNestedValue('openai_timeout', config.openai?.timeout || 300);
+            setNestedValue('anthropic_url', config.anthropic?.base_url || 'https://api.anthropic.com/v1');
+            setNestedValue('anthropic_key', config.anthropic?.api_key || '');
+            setNestedValue('anthropic_timeout', config.anthropic?.timeout || 300);
+
+            setNestedValue('max_context_length', config.agent?.max_context_length || 4096);
+            setNestedValue('project_root', config.agent?.project_root || '.');
+            setNestedValue('load_project_context', config.agent?.load_project_context !== false);
+            setNestedValue('save_history', config.agent?.save_history !== false);
+            setNestedValue('system_prompt', config.agent?.system_prompt || '');
+
+            setNestedValue('use_gpu', config.gpu?.use_gpu !== false);
+            setNestedValue('max_memory', config.gpu?.max_memory || 24);
+            setNestedValue('use_4bit', config.gpu?.use_4bit || false);
+            setNestedValue('use_8bit', config.gpu?.use_8bit || false);
+            setNestedValue('use_flash_attention', config.gpu?.use_flash_attention !== false);
+
+            setNestedValue('mcp_enabled', config.mcp?.enabled !== false);
+            setNestedValue('mcp_max_iterations', config.mcp?.max_iterations || 5);
+
+            updateProviderSections();
+        }
+
+        function setNestedValue(id, value) {
+            const element = document.getElementById(id);
+            if (!element) return;
+            
+            if (element.type === 'checkbox') {
+                element.checked = value;
+            } else {
+                element.value = value;
+            }
+        }
+
+        function updateProviderSections() {
+            const provider = document.getElementById('provider').value;
+            document.getElementById('ollama-section').style.display = provider === 'ollama' ? 'block' : 'none';
+            document.getElementById('lmstudio-section').style.display = provider === 'lmstudio' ? 'block' : 'none';
+            document.getElementById('openai-section').style.display = provider === 'openai' ? 'block' : 'none';
+            document.getElementById('anthropic-section').style.display = provider === 'anthropic' ? 'block' : 'none';
+        }
+
+        document.getElementById('provider').addEventListener('change', updateProviderSections);
+
+        // Сохранение настроек
+        document.getElementById('settings-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const config = {};
+            
+            config.model = {
+                provider: document.getElementById('provider').value,
+                model_name: document.getElementById('model_name').value,
+                generation: {
+                    temperature: parseFloat(document.getElementById('temperature').value) || 0.2,
+                    max_tokens: parseInt(document.getElementById('max_tokens').value) || 4096,
+                    top_p: parseFloat(document.getElementById('top_p').value) || 0.95,
+                    top_k: parseInt(document.getElementById('top_k').value) || 40,
+                    repetition_penalty: parseFloat(document.getElementById('repetition_penalty').value) || 1.1
+                }
+            };
+
+            const provider = config.model.provider;
+            if (provider === 'ollama') {
+                config.ollama = {
+                    base_url: document.getElementById('ollama_url').value || 'http://localhost:11434',
+                    timeout: parseInt(document.getElementById('ollama_timeout').value) || 300
+                };
+            } else if (provider === 'lmstudio') {
+                config.lmstudio = {
+                    base_url: document.getElementById('lmstudio_url').value || 'http://localhost:1234',
+                    timeout: parseInt(document.getElementById('lmstudio_timeout').value) || 300
+                };
+            } else if (provider === 'openai') {
+                config.openai = {
+                    base_url: document.getElementById('openai_url').value || 'https://api.openai.com/v1',
+                    api_key: document.getElementById('openai_key').value || '',
+                    timeout: parseInt(document.getElementById('openai_timeout').value) || 300
+                };
+            } else if (provider === 'anthropic') {
+                config.anthropic = {
+                    base_url: document.getElementById('anthropic_url').value || 'https://api.anthropic.com/v1',
+                    api_key: document.getElementById('anthropic_key').value || '',
+                    timeout: parseInt(document.getElementById('anthropic_timeout').value) || 300
+                };
+            }
+
+            config.agent = {
+                max_context_length: parseInt(document.getElementById('max_context_length').value) || 4096,
+                project_root: document.getElementById('project_root').value || '.',
+                load_project_context: document.getElementById('load_project_context').checked,
+                save_history: document.getElementById('save_history').checked,
+                system_prompt: document.getElementById('system_prompt').value
+            };
+
+            config.gpu = {
+                use_gpu: document.getElementById('use_gpu').checked,
+                max_memory: parseInt(document.getElementById('max_memory').value) || 24,
+                use_4bit: document.getElementById('use_4bit').checked,
+                use_8bit: document.getElementById('use_8bit').checked,
+                use_flash_attention: document.getElementById('use_flash_attention').checked
+            };
+
+            config.mcp = {
+                enabled: document.getElementById('mcp_enabled').checked,
+                max_iterations: parseInt(document.getElementById('mcp_max_iterations').value) || 5
+            };
+
+            try {
+                const response = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ config })
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    showAlert('Ошибка сохранения: ' + data.error, 'error');
+                } else {
+                    showAlert(data.warning || data.message || 'Настройки успешно сохранены!', data.warning ? 'warning' : 'success');
+                    currentConfig = config;
+                }
+            } catch (e) {
+                showAlert('Ошибка: ' + e.message, 'error');
+            }
+        });
+
+        function resetForm() {
+            if (confirm('Сбросить все изменения?')) {
+                populateForm(currentConfig);
+            }
+        }
+
+        // Загружаем настройки при загрузке страницы
+        loadSettings();
+    </script>
+</body>
+</html>

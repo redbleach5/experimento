@@ -1,0 +1,1806 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Code Agent - IDE</title>
+    <!-- CodeMirror -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/eclipse.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+    
+    <!-- Markdown и подсветка синтаксиса -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" media="(prefers-color-scheme: dark)">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    
+    <!-- Общие стили -->
+    <link rel="stylesheet" href="/static/css/common.css">
+    <link rel="stylesheet" href="/static/css/chat.css">
+    <link rel="stylesheet" href="/static/css/ide.css">
+    
+    <style>
+        /* Минимальные специфичные стили для IDE, если нужны */
+        
+        /* Дополнительные стили для темной темы CodeMirror */
+        [data-theme="dark"] .CodeMirror {
+            background: #272822 !important;
+        }
+        
+        [data-theme="dark"] .CodeMirror-gutters {
+            background: #272822 !important;
+            border-right: 1px solid var(--border) !important;
+        }
+        
+        [data-theme="dark"] .CodeMirror-linenumber {
+            color: #75715e !important;
+        }
+        
+        [data-theme="dark"] .CodeMirror-cursor {
+            border-left: 2px solid var(--accent) !important;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: var(--bg-main);
+            color: var(--fg-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            margin: 0;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+        
+        .header {
+            background: var(--bg-secondary);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            box-shadow: 0 1px 3px var(--shadow);
+            transition: all 0.3s ease;
+        }
+        
+        .header h1 { 
+            font-size: 18px; 
+            font-weight: 600; 
+            color: var(--fg-main);
+            margin: 0;
+        }
+        
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .theme-toggle {
+            background: var(--bg-tertiary);
+            border: none;
+            color: var(--fg-main);
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+        }
+
+        .theme-toggle:hover {
+            background: var(--border);
+            transform: scale(1.05);
+        }
+        
+        .mode-toggle {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .mode-btn {
+            padding: 8px 16px;
+            background: var(--bg-tertiary);
+            border: none;
+            color: var(--fg-main);
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+        
+        .mode-btn:hover {
+            background: var(--border);
+        }
+        
+        .mode-btn.active {
+            background: var(--accent);
+            color: white;
+            box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
+        }
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        .sidebar {
+            width: 280px;
+            min-width: 200px;
+            max-width: 600px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: border-color 0.3s ease;
+            position: relative;
+        }
+
+        .resize-handle {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 4px;
+            height: 100%;
+            cursor: col-resize;
+            background: transparent;
+            z-index: 100;
+            transition: background 0.2s ease;
+        }
+
+        .resize-handle:hover {
+            background: var(--accent);
+        }
+
+        .resize-handle.active {
+            background: var(--accent);
+        }
+        
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .sidebar-header button {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
+        }
+        
+        .sidebar-header button:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+        }
+        
+        .file-tree {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 8px;
+            position: relative;
+        }
+        
+        .file-tree::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .file-tree::-webkit-scrollbar-track {
+            background: var(--bg-main);
+        }
+        
+        .file-tree::-webkit-scrollbar-thumb {
+            background: var(--fg-secondary);
+            border-radius: 4px;
+        }
+        
+        .file-tree::-webkit-scrollbar-thumb:hover {
+            background: var(--fg-main);
+        }
+        
+        .file-item {
+            padding: 4px 4px 4px 0;
+            cursor: pointer;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 13px;
+            transition: all 0.15s ease;
+            margin-bottom: 0;
+            color: var(--fg-main);
+            user-select: none;
+            position: relative;
+            min-height: 22px;
+        }
+        
+        .file-item:hover {
+            background: var(--bg-tertiary);
+            color: var(--accent);
+        }
+        
+        .file-item.selected {
+            background: var(--accent);
+            color: white;
+        }
+        
+        .file-item span {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .file-item .expand-icon {
+            width: 18px;
+            height: 18px;
+            min-width: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            transition: transform 0.2s ease, color 0.2s ease;
+            opacity: 0.8;
+            cursor: pointer;
+            margin-right: 4px;
+            flex-shrink: 0;
+            color: var(--fg-secondary);
+            background: transparent;
+            border: none;
+            padding: 0;
+        }
+
+        .file-item .expand-icon:hover {
+            background: transparent;
+            opacity: 1;
+            color: var(--accent);
+        }
+
+        .file-item.expanded .expand-icon {
+            transform: rotate(90deg);
+        }
+
+        .file-item.has-children .expand-icon {
+            opacity: 1;
+            font-weight: bold;
+        }
+
+        .file-children {
+            margin-left: 0;
+            padding-left: 0;
+            margin-top: 0;
+            margin-bottom: 0;
+            position: relative;
+        }
+
+        .file-children.hidden {
+            display: none;
+        }
+
+        .file-tree-item {
+            position: relative;
+            margin-left: 0;
+        }
+
+        /* Убираем линии для корневых элементов */
+        .tree-container > .file-tree-item[data-depth="0"] .file-item::after {
+            display: none;
+        }
+        
+        .tree-container {
+            position: relative;
+        }
+
+        /* Простая и понятная визуализация вложенности */
+        .file-tree-item[data-depth="0"] .file-item { padding-left: 0; }
+        .file-tree-item[data-depth="1"] .file-item { padding-left: 20px; }
+        .file-tree-item[data-depth="2"] .file-item { padding-left: 40px; }
+        .file-tree-item[data-depth="3"] .file-item { padding-left: 60px; }
+        .file-tree-item[data-depth="4"] .file-item { padding-left: 80px; }
+        .file-tree-item[data-depth="5"] .file-item { padding-left: 100px; }
+
+        /* Четкие вертикальные линии для каждого уровня вложенности */
+        .file-tree-item[data-depth="1"] .file-item::after,
+        .file-tree-item[data-depth="2"] .file-item::after,
+        .file-tree-item[data-depth="3"] .file-item::after,
+        .file-tree-item[data-depth="4"] .file-item::after,
+        .file-tree-item[data-depth="5"] .file-item::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--accent);
+            opacity: 0.6;
+            z-index: 0;
+        }
+
+        .file-tree-item[data-depth="1"] .file-item::after { left: 0; }
+        .file-tree-item[data-depth="2"] .file-item::after { left: 20px; }
+        .file-tree-item[data-depth="3"] .file-item::after { left: 40px; }
+        .file-tree-item[data-depth="4"] .file-item::after { left: 60px; }
+        .file-tree-item[data-depth="5"] .file-item::after { left: 80px; }
+
+        [data-theme="dark"] .file-tree-item[data-depth] .file-item::after {
+            opacity: 0.8;
+            width: 3px;
+        }
+
+        /* Дополнительная визуализация - градиент для лучшей видимости */
+        .file-tree-item[data-depth] .file-item::after {
+            box-shadow: 0 0 2px rgba(0, 122, 255, 0.3);
+        }
+
+        /* Дополнительная визуализация для папок */
+        .file-item.has-children {
+            font-weight: 500;
+        }
+
+        /* Улучшенная видимость структуры */
+        .file-tree-item {
+            border-left: 1px solid transparent;
+        }
+
+        .file-tree-item:hover {
+            border-left-color: var(--accent);
+            opacity: 0.3;
+        }
+
+        .refresh-btn {
+            position: sticky;
+            top: 0;
+            float: right;
+            background: var(--bg-tertiary);
+            border: none;
+            color: var(--fg-main);
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s ease;
+            opacity: 0.7;
+            z-index: 10;
+            margin-bottom: 8px;
+        }
+
+        .refresh-btn:hover {
+            opacity: 1;
+            background: var(--border);
+        }
+
+        .refresh-btn.refreshing {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .editor-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .tabs {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            overflow-x: auto;
+            min-height: 44px;
+            transition: all 0.3s ease;
+        }
+        
+        .tabs::-webkit-scrollbar {
+            height: 4px;
+        }
+        
+        .tabs::-webkit-scrollbar-thumb {
+            background: var(--fg-secondary);
+            border-radius: 2px;
+        }
+        
+        .save-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            padding: 10px 20px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            z-index: 10;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
+        }
+        
+        .save-btn:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+        }
+        
+        .tab {
+            padding: 12px 20px;
+            background: var(--bg-tertiary);
+            border-right: 1px solid var(--border);
+            cursor: pointer;
+            white-space: nowrap;
+            font-size: 13px;
+            color: var(--fg-main);
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .tab:hover {
+            background: var(--border);
+            color: var(--fg-main);
+        }
+        
+        .tab.active {
+            background: var(--bg-secondary);
+            color: var(--accent);
+            border-bottom: 2px solid var(--accent);
+            font-weight: 600;
+        }
+        
+        .tab .close {
+            margin-left: 4px;
+            opacity: 0.6;
+            font-size: 18px;
+            line-height: 1;
+            transition: all 0.15s ease;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+        }
+        
+        .tab .close:hover {
+            opacity: 1;
+            background: var(--error);
+            color: white;
+        }
+        .editor-wrapper {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        .CodeMirror {
+            height: 100% !important;
+            font-size: 14px;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            background: var(--bg-secondary) !important;
+            color: var(--fg-main) !important;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+        
+        .CodeMirror-gutters {
+            background: var(--bg-main) !important;
+            border-right: 1px solid var(--border) !important;
+            transition: all 0.3s ease;
+        }
+        
+        .CodeMirror-linenumber {
+            color: var(--fg-secondary) !important;
+        }
+        
+        .CodeMirror-cursor {
+            border-left: 2px solid var(--accent) !important;
+        }
+        
+        .CodeMirror-selected {
+            background: var(--bg-tertiary) !important;
+        }
+        
+        [data-theme="dark"] .CodeMirror-selected {
+            background: rgba(10, 132, 255, 0.3) !important;
+        }
+        
+        /* Переопределение для темной темы CodeMirror */
+        [data-theme="dark"] .CodeMirror {
+            background: #272822 !important;
+        }
+        
+        [data-theme="dark"] .CodeMirror-gutters {
+            background: #272822 !important;
+            border-right: 1px solid var(--border) !important;
+        }
+        
+        /* Улучшение контрастности для синтаксиса */
+        .CodeMirror .cm-keyword { color: var(--accent) !important; font-weight: 600; }
+        .CodeMirror .cm-string { color: var(--success) !important; }
+        .CodeMirror .cm-comment { color: var(--fg-secondary) !important; font-style: italic; }
+        .CodeMirror .cm-number { color: var(--warning) !important; }
+        .CodeMirror .cm-def { color: #AF52DE !important; }
+        .CodeMirror .cm-variable { color: var(--fg-main) !important; }
+        .CodeMirror .cm-operator { color: var(--fg-main) !important; }
+        
+        .CodeMirror-scroll {
+            overflow: auto !important;
+            height: 100%;
+        }
+        
+        .CodeMirror-scroll::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        .CodeMirror-scroll::-webkit-scrollbar-track {
+            background: var(--bg-main) !important;
+        }
+        
+        .CodeMirror-scroll::-webkit-scrollbar-thumb {
+            background: var(--fg-secondary) !important;
+            border-radius: 4px;
+        }
+        
+        .CodeMirror-scroll::-webkit-scrollbar-thumb:hover {
+            background: var(--fg-main) !important;
+        }
+        .chat-panel {
+            width: 380px;
+            min-width: 250px;
+            max-width: 800px;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            transition: border-color 0.3s ease;
+            position: relative;
+        }
+        
+        .chat-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            font-size: 14px;
+            background: var(--bg-secondary);
+            color: var(--fg-main);
+            transition: all 0.3s ease;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 16px;
+            word-wrap: break-word;
+            line-height: 1.6;
+        }
+        
+        .chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .chat-messages::-webkit-scrollbar-track {
+            background: var(--bg-main);
+        }
+        
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: var(--fg-secondary);
+            border-radius: 4px;
+        }
+        
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: var(--fg-main);
+        }
+        
+        .chat-message {
+            margin-bottom: 16px;
+            padding: 12px;
+            border-radius: 12px;
+            background: var(--bg-tertiary);
+            color: var(--fg-main);
+            animation: fadeIn 0.3s ease;
+            transition: all 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .chat-message strong {
+            color: var(--accent);
+            font-weight: 600;
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+        
+        .chat-message code {
+            background: var(--bg-secondary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 12px;
+            color: var(--fg-main);
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+        
+        .chat-message pre {
+            background: var(--bg-secondary);
+            padding: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 8px 0;
+            border: 1px solid var(--border);
+            color: var(--fg-main);
+            transition: all 0.3s ease;
+        }
+
+        .chat-message pre code {
+            background: transparent;
+            padding: 0;
+            border: none;
+            font-size: 13px;
+            color: inherit;
+        }
+
+        /* Стили для markdown */
+        .chat-message h1,
+        .chat-message h2,
+        .chat-message h3,
+        .chat-message h4,
+        .chat-message h5,
+        .chat-message h6 {
+            margin: 12px 0 6px 0;
+            font-weight: 600;
+            line-height: 1.3;
+            color: var(--fg-main);
+        }
+
+        .chat-message h1 { font-size: 20px; }
+        .chat-message h2 { font-size: 18px; }
+        .chat-message h3 { font-size: 16px; }
+        .chat-message h4 { font-size: 14px; }
+        .chat-message h5 { font-size: 13px; }
+        .chat-message h6 { font-size: 12px; }
+
+        .chat-message p {
+            margin: 6px 0;
+            line-height: 1.6;
+        }
+
+        .chat-message ul,
+        .chat-message ol {
+            margin: 6px 0;
+            padding-left: 20px;
+        }
+
+        .chat-message li {
+            margin: 3px 0;
+            line-height: 1.5;
+        }
+
+        .chat-message blockquote {
+            border-left: 3px solid var(--accent);
+            padding-left: 12px;
+            margin: 8px 0;
+            color: var(--fg-secondary);
+            font-style: italic;
+        }
+
+        .chat-message table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 8px 0;
+            font-size: 12px;
+        }
+
+        .chat-message table th,
+        .chat-message table td {
+            border: 1px solid var(--border);
+            padding: 6px 10px;
+            text-align: left;
+        }
+
+        .chat-message table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+        }
+
+        .chat-message a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .chat-message a:hover {
+            text-decoration: underline;
+        }
+
+        .chat-message hr {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 12px 0;
+        }
+
+        .chat-message strong {
+            font-weight: 600;
+        }
+
+        .chat-message em {
+            font-style: italic;
+        }
+
+        /* Подсветка синтаксиса */
+        .chat-message .hljs {
+            background: var(--bg-secondary) !important;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        [data-theme="dark"] .chat-message .hljs {
+            background: #1e1e1e !important;
+        }
+
+        .chat-message .hljs-keyword { color: var(--accent); }
+        .chat-message .hljs-string { color: var(--success); }
+        .chat-message .hljs-comment { color: var(--fg-secondary); font-style: italic; }
+        .chat-message .hljs-number { color: var(--warning); }
+        .chat-message .hljs-function { color: #AF52DE; }
+        .chat-message .hljs-variable { color: var(--fg-main); }
+        
+        .chat-input {
+            border-top: 1px solid var(--border);
+            padding: 16px;
+            background: var(--bg-secondary);
+            transition: all 0.3s ease;
+        }
+        
+        .chat-input textarea {
+            width: 100%;
+            min-height: 90px;
+            background: var(--bg-tertiary);
+            color: var(--fg-main);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+            resize: vertical;
+            font-family: inherit;
+            font-size: 13px;
+            line-height: 1.5;
+            transition: all 0.2s ease;
+        }
+        
+        .chat-input textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: var(--bg-secondary);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+        
+        .chat-input textarea::placeholder {
+            color: var(--fg-secondary);
+        }
+        
+        .chat-input button {
+            margin-top: 12px;
+            padding: 12px 20px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
+        }
+        
+        .chat-input button:hover:not(:disabled) {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+        }
+        
+        .chat-input button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Модальное окно для выбора папки */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
+        }
+        
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 8px 32px var(--shadow);
+            animation: modalFadeIn 0.3s ease;
+            transition: all 0.3s ease;
+        }
+        
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9) translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+        
+        .modal-header {
+            margin-bottom: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--fg-main);
+        }
+        
+        .modal-input {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--fg-main);
+            font-size: 14px;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            margin-bottom: 16px;
+            transition: all 0.2s ease;
+        }
+        
+        .modal-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: var(--bg-secondary);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        
+        .modal-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 13px;
+            transition: all 0.2s ease;
+        }
+        
+        .modal-btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+        
+        .modal-btn-primary:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+        }
+        
+        .modal-btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--fg-main);
+            border: 1px solid var(--border);
+        }
+        
+        .modal-btn-secondary:hover {
+            background: var(--border);
+        }
+        
+        .path-hint {
+            font-size: 12px;
+            color: var(--fg-secondary);
+            margin-bottom: 8px;
+        }
+        
+        .current-path {
+            font-size: 12px;
+            color: var(--accent);
+            margin-bottom: 12px;
+            padding: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-header">
+        <div class="header-content">
+            <h1 class="app-title">
+                <span class="title-icon">🤖</span>
+                <span class="title-text">AI Code Agent - IDE</span>
+            </h1>
+            <div class="header-actions">
+                <button class="icon-btn" id="themeToggle" title="Переключить тему">
+                    <span class="theme-icon">🌙</span>
+                </button>
+                <nav class="header-nav">
+                    <a href="/" class="nav-btn">
+                        <span>💬</span>
+                        <span>Чат</span>
+                    </a>
+                    <a href="/settings" class="nav-btn">
+                        <span>⚙️</span>
+                        <span>Настройки</span>
+                    </a>
+                </nav>
+            </div>
+        </div>
+    </div>
+    
+    <div class="main-container">
+        <div class="sidebar" id="sidebar">
+            <div class="resize-handle" id="sidebarResize"></div>
+            <div class="sidebar-header">
+                <button onclick="selectWorkspace()" class="action-btn primary" style="width: 100%;">
+                    <span>📂</span>
+                    <span>Выбрать папку</span>
+                </button>
+                <div class="current-path" id="currentPath" style="margin-top: 8px; display: none;"></div>
+            </div>
+            <div class="file-tree" id="fileTree"></div>
+        </div>
+        
+        <!-- Модальное окно для выбора папки -->
+        <div class="modal" id="workspaceModal">
+            <div class="modal-content">
+                <div class="modal-header">📂 Выбор рабочей директории</div>
+                <div class="path-hint">Введите путь к папке (абсолютный или относительный):</div>
+                <div class="current-path" id="modalCurrentPath">Текущая: <span id="currentPathText">.</span></div>
+                <input type="text" class="modal-input" id="workspacePath" placeholder="Например: C:\Projects\MyProject или ./subfolder" value=".">
+                <div class="modal-buttons">
+                    <button class="modal-btn modal-btn-secondary" onclick="closeWorkspaceModal()">Отмена</button>
+                    <button class="modal-btn modal-btn-primary" onclick="confirmWorkspace()">Открыть</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="editor-container">
+            <div class="tabs" id="tabs"></div>
+            <div class="editor-wrapper">
+                <button class="save-btn action-btn primary" onclick="saveFile()" style="display: none;" id="saveBtn">
+                    <span>💾</span>
+                    <span>Сохранить</span>
+                </button>
+                <textarea id="editor"></textarea>
+            </div>
+        </div>
+        
+        <div class="chat-panel" id="chatPanel">
+            <div class="resize-handle" id="chatPanelResize" style="left: 0; right: auto;"></div>
+            <div class="chat-header">
+                <span>AI Помощник</span>
+                <button onclick="clearChat()" class="action-btn secondary" style="float: right; padding: 6px 12px; font-size: 11px;">
+                    <span>🗑️</span>
+                    <span>Очистить</span>
+                </button>
+            </div>
+            <div class="chat-messages" id="chatMessages"></div>
+            <div class="chat-input">
+                <textarea id="chatInput" placeholder="Введите запрос... (Ctrl+Enter для отправки)"></textarea>
+                <button onclick="sendMessage()" id="sendBtn" class="action-btn primary" style="width: 100%; margin-top: 12px;">
+                    <span>📤</span>
+                    <span>Отправить</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/htmlmixed/htmlmixed.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/xml/xml.min.js"></script>
+    
+    <!-- Общие скрипты -->
+    <script src="/static/js/common.js"></script>
+    
+    <script>
+        let editor, currentPath = ".", openFiles = {}, activeTab = null;
+        let accumulatedContent = '';
+        
+        function updateCodeMirrorTheme(theme) {
+            if (editor) {
+                editor.setOption('theme', theme === 'dark' ? 'monokai' : 'eclipse');
+            }
+        }
+        
+        // Инициализация всех компонентов после загрузки DOM
+        document.addEventListener('DOMContentLoaded', () => {
+            // Инициализация темы с поддержкой CodeMirror
+            if (typeof ThemeManager !== 'undefined') {
+                // Сохраняем оригинальный toggle
+                const originalToggle = ThemeManager.toggle.bind(ThemeManager);
+                
+                // Переопределяем toggle для поддержки CodeMirror
+                ThemeManager.toggle = function() {
+                    originalToggle();
+                    const currentTheme = document.documentElement.getAttribute('data-theme');
+                    updateCodeMirrorTheme(currentTheme);
+                };
+                
+                // Инициализируем тему
+                const savedTheme = localStorage.getItem('theme') || 'light';
+                ThemeManager.init();
+                updateCodeMirrorTheme(savedTheme);
+            }
+            
+            const fileTree = document.getElementById('fileTree');
+            const tabs = document.getElementById('tabs');
+            const chatMessages = document.getElementById('chatMessages');
+            const chatInput = document.getElementById('chatInput');
+            
+            // Получаем сохраненную тему для редактора
+            const savedThemeForEditor = localStorage.getItem('theme') || 'light';
+            
+            // Инициализация редактора
+            editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+                theme: savedThemeForEditor === 'dark' ? 'monokai' : 'eclipse',
+                lineNumbers: true,
+                mode: 'python',
+                indentUnit: 4,
+                lineWrapping: false,
+                scrollbarStyle: 'native',
+                autofocus: true
+            });
+            
+            // Устанавливаем высоту редактора
+            setTimeout(() => {
+                const wrapper = document.querySelector('.editor-wrapper');
+                if (wrapper) {
+                    editor.setSize('100%', wrapper.offsetHeight);
+                }
+            }, 100);
+            
+            // Обновляем размер при изменении окна
+            window.addEventListener('resize', () => {
+                const wrapper = document.querySelector('.editor-wrapper');
+                if (wrapper && editor) {
+                    editor.setSize('100%', wrapper.offsetHeight);
+                }
+            });
+            
+            editor.on('change', () => {
+                if (activeTab) {
+                    openFiles[activeTab].modified = true;
+                    openFiles[activeTab].content = editor.getValue();
+                    updateTabTitle(activeTab);
+                    const saveBtn = document.getElementById('saveBtn');
+                    if (saveBtn) {
+                        saveBtn.style.display = 'block';
+                        // Добавляем анимацию
+                        saveBtn.style.animation = 'pulse 2s infinite';
+                    }
+                }
+            });
+            
+            // Горячие клавиши для IDE
+            if (typeof KeyboardShortcuts !== 'undefined') {
+                KeyboardShortcuts.register('Ctrl+s', (e) => {
+                    e.preventDefault();
+                    saveFile();
+                }, 'Сохранить файл');
+                
+                KeyboardShortcuts.register('Ctrl+w', (e) => {
+                    e.preventDefault();
+                    if (activeTab) {
+                        closeTab(activeTab, { stopPropagation: () => {} });
+                    }
+                }, 'Закрыть вкладку');
+            }
+            
+            // Инициализация текущего пути
+            const currentPathDiv = document.getElementById('currentPath');
+            if (currentPathDiv) {
+                currentPathDiv.textContent = `📂 ${currentPath}`;
+            }
+            
+            // Загружаем сохраненные раскрытые пути перед загрузкой дерева
+            loadExpandedPaths();
+            
+            // Загружаем дерево файлов при старте
+            loadFileTree();
+            
+            // Автоматическое обновление каждые 30 секунд
+            refreshInterval = setInterval(() => {
+                if (currentPath) {
+                    loadFileTree(currentPath);
+                }
+            }, 30000);
+            
+            // Очистка интервала при закрытии страницы
+            window.addEventListener('beforeunload', () => {
+                if (refreshInterval) {
+                    clearInterval(refreshInterval);
+                }
+            });
+            
+            // ========== Resize панелей ==========
+            const sidebar = document.getElementById('sidebar');
+            const chatPanel = document.getElementById('chatPanel');
+            const sidebarResize = document.getElementById('sidebarResize');
+            const chatPanelResize = document.getElementById('chatPanelResize');
+
+            // Загружаем сохраненные размеры
+            const savedSidebarWidth = localStorage.getItem('sidebarWidth');
+            const savedChatPanelWidth = localStorage.getItem('chatPanelWidth');
+            if (savedSidebarWidth && sidebar) {
+                sidebar.style.width = savedSidebarWidth + 'px';
+            }
+            if (savedChatPanelWidth && chatPanel) {
+                chatPanel.style.width = savedChatPanelWidth + 'px';
+            }
+
+            // Resize для sidebar
+            if (sidebarResize) {
+                let isResizingSidebar = false;
+                sidebarResize.addEventListener('mousedown', (e) => {
+                    isResizingSidebar = true;
+                    sidebarResize.classList.add('active');
+                    document.addEventListener('mousemove', handleSidebarResize);
+                    document.addEventListener('mouseup', stopSidebarResize);
+                    e.preventDefault();
+                });
+
+                function handleSidebarResize(e) {
+                    if (!isResizingSidebar) return;
+                    const newWidth = e.clientX;
+                    const minWidth = 200;
+                    const maxWidth = 600;
+                    if (newWidth >= minWidth && newWidth <= maxWidth && sidebar) {
+                        sidebar.style.width = newWidth + 'px';
+                    }
+                }
+
+                function stopSidebarResize() {
+                    isResizingSidebar = false;
+                    if (sidebarResize) sidebarResize.classList.remove('active');
+                    if (sidebar) localStorage.setItem('sidebarWidth', sidebar.offsetWidth);
+                    document.removeEventListener('mousemove', handleSidebarResize);
+                    document.removeEventListener('mouseup', stopSidebarResize);
+                }
+            }
+
+            // Resize для chat panel
+            if (chatPanelResize) {
+                let isResizingChatPanel = false;
+                chatPanelResize.addEventListener('mousedown', (e) => {
+                    isResizingChatPanel = true;
+                    chatPanelResize.classList.add('active');
+                    document.addEventListener('mousemove', handleChatPanelResize);
+                    document.addEventListener('mouseup', stopChatPanelResize);
+                    e.preventDefault();
+                });
+
+                function handleChatPanelResize(e) {
+                    if (!isResizingChatPanel) return;
+                    const newWidth = window.innerWidth - e.clientX;
+                    const minWidth = 250;
+                    const maxWidth = 800;
+                    if (newWidth >= minWidth && newWidth <= maxWidth && chatPanel) {
+                        chatPanel.style.width = newWidth + 'px';
+                    }
+                }
+
+                function stopChatPanelResize() {
+                    isResizingChatPanel = false;
+                    if (chatPanelResize) chatPanelResize.classList.remove('active');
+                    if (chatPanel) localStorage.setItem('chatPanelWidth', chatPanel.offsetWidth);
+                    document.removeEventListener('mousemove', handleChatPanelResize);
+                    document.removeEventListener('mouseup', stopChatPanelResize);
+                }
+            }
+            
+            // Инициализация модального окна для выбора workspace
+            const workspaceModal = document.getElementById('workspaceModal');
+            if (workspaceModal) {
+                workspaceModal.addEventListener('click', (e) => {
+                    if (e.target.id === 'workspaceModal') {
+                        closeWorkspaceModal();
+                    }
+                });
+            }
+            
+            // Закрытие по Escape
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closeWorkspaceModal();
+                }
+            });
+            
+            // Открытие папки по Enter в поле ввода
+            const workspacePathInput = document.getElementById('workspacePath');
+            if (workspacePathInput) {
+                workspacePathInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        confirmWorkspace();
+                    }
+                });
+            }
+        });
+
+        let fileTreeData = null;
+        let expandedPaths = new Set();
+        let refreshInterval = null;
+
+        // Загружаем сохраненные раскрытые пути
+        function loadExpandedPaths() {
+            const saved = localStorage.getItem('expandedPaths');
+            if (saved) {
+                try {
+                    expandedPaths = new Set(JSON.parse(saved));
+                } catch (e) {
+                    expandedPaths = new Set();
+                }
+            }
+        }
+
+        // Сохраняем раскрытые пути
+        function saveExpandedPaths() {
+            localStorage.setItem('expandedPaths', JSON.stringify(Array.from(expandedPaths)));
+        }
+
+        // Загрузка дерева файлов
+        async function loadFileTree(path = ".", forceRefresh = false) {
+            try {
+                const response = await fetch(`/api/files/tree?root_path=${encodeURIComponent(path)}&max_depth=5`);
+                const data = await response.json();
+                if (data.error) {
+                    console.error('Ошибка загрузки дерева:', data.error);
+                    return;
+                }
+                currentPath = data.root_path;
+                fileTreeData = data.tree;
+                renderFileTree();
+                
+                // Обновляем отображение текущего пути
+                const currentPathDiv = document.getElementById('currentPath');
+                if (currentPathDiv) {
+                    currentPathDiv.textContent = `📂 ${currentPath}`;
+                    currentPathDiv.style.display = 'block';
+                }
+            } catch (e) {
+                console.error('Ошибка загрузки дерева файлов:', e);
+            }
+        }
+
+        function refreshFileTree() {
+            const refreshBtn = document.querySelector('.refresh-btn');
+            if (refreshBtn) {
+                refreshBtn.classList.add('refreshing');
+            }
+            loadFileTree(currentPath || ".", true).then(() => {
+                setTimeout(() => {
+                    if (refreshBtn) {
+                        refreshBtn.classList.remove('refreshing');
+                    }
+                }, 500);
+            });
+        }
+        
+        function getFileIcon(name, type) {
+            if (type === 'directory') return '📁';
+            const ext = name.split('.').pop().toLowerCase();
+            const icons = {
+                'py': '🐍', 'js': '📜', 'ts': '📘', 'jsx': '⚛️', 'tsx': '⚛️',
+                'html': '🌐', 'css': '🎨', 'json': '📋', 'yaml': '⚙️', 'yml': '⚙️',
+                'md': '📝', 'txt': '📄', 'sh': '💻', 'bat': '💻',
+                'png': '🖼️', 'jpg': '🖼️', 'jpeg': '🖼️', 'gif': '🖼️',
+                'pdf': '📕', 'zip': '📦', 'git': '🔧'
+            };
+            return icons[ext] || '📄';
+        }
+
+        function toggleFolder(fullPath, itemDiv, wrapper) {
+            const isExpanded = expandedPaths.has(fullPath);
+            const childrenDiv = wrapper.querySelector('.file-children');
+            
+            if (isExpanded) {
+                // Сворачиваем
+                expandedPaths.delete(fullPath);
+                itemDiv.classList.remove('expanded');
+                if (childrenDiv) {
+                    childrenDiv.classList.add('hidden');
+                }
+            } else {
+                // Раскрываем
+                expandedPaths.add(fullPath);
+                itemDiv.classList.add('expanded');
+                if (childrenDiv) {
+                    childrenDiv.classList.remove('hidden');
+                }
+            }
+            saveExpandedPaths();
+        }
+
+        function renderFileTreeItem(item, depth = 0) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'file-tree-item';
+            wrapper.setAttribute('data-depth', depth);
+            
+            const itemDiv = document.createElement('div');
+            const hasChildren = item.children && item.children.length > 0;
+            const isExpanded = expandedPaths.has(item.full_path);
+            
+            itemDiv.className = `file-item ${hasChildren ? 'has-children' : ''} ${isExpanded ? 'expanded' : ''}`;
+            
+            const icon = getFileIcon(item.name, item.type);
+            
+            // Создаем элементы отдельно для лучшего контроля
+            const expandIconSpan = document.createElement('span');
+            expandIconSpan.className = 'expand-icon';
+            if (hasChildren) {
+                expandIconSpan.textContent = '▶';
+                expandIconSpan.onclick = (e) => {
+                    e.stopPropagation();
+                    toggleFolder(item.full_path, itemDiv, wrapper);
+                };
+            } else {
+                expandIconSpan.style.width = '18px';
+                expandIconSpan.style.minWidth = '18px';
+            }
+            
+            const iconSpan = document.createTextNode(icon + ' ');
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = item.name;
+            
+            itemDiv.appendChild(expandIconSpan);
+            itemDiv.appendChild(iconSpan);
+            itemDiv.appendChild(nameSpan);
+            
+            // Обработчик клика на имя файла/папки
+            nameSpan.onclick = (e) => {
+                e.stopPropagation();
+                
+                // Убираем выделение с других элементов
+                document.querySelectorAll('.file-item').forEach(el => el.classList.remove('selected'));
+                itemDiv.classList.add('selected');
+                
+                if (item.type === 'directory') {
+                    if (hasChildren) {
+                        // При клике на имя папки тоже переключаем раскрытие
+                        toggleFolder(item.full_path, itemDiv, wrapper);
+                    }
+                } else if (item.type === 'file') {
+                    openFile(item.full_path);
+                }
+            };
+            
+            // Клик на всю область тоже работает
+            itemDiv.onclick = (e) => {
+                // Если клик на треугольник или имя - уже обработано
+                if (e.target === expandIconSpan || e.target === nameSpan) return;
+                
+                // Убираем выделение с других элементов
+                document.querySelectorAll('.file-item').forEach(el => el.classList.remove('selected'));
+                itemDiv.classList.add('selected');
+                
+                if (item.type === 'directory' && hasChildren) {
+                    toggleFolder(item.full_path, itemDiv, wrapper);
+                } else if (item.type === 'file') {
+                    openFile(item.full_path);
+                }
+            };
+            
+            wrapper.appendChild(itemDiv);
+            
+            // Добавляем дочерние элементы
+            if (hasChildren) {
+                const childrenDiv = document.createElement('div');
+                childrenDiv.className = `file-children ${isExpanded ? '' : 'hidden'}`;
+                item.children.forEach(child => {
+                    childrenDiv.appendChild(renderFileTreeItem(child, depth + 1));
+                });
+                wrapper.appendChild(childrenDiv);
+            }
+            
+            return wrapper;
+        }
+        
+        function renderFileTree() {
+            if (!fileTreeData) return;
+            
+            fileTree.innerHTML = '';
+            
+            // Создаем контейнер для кнопки обновления
+            const headerDiv = document.createElement('div');
+            headerDiv.style.cssText = 'position: relative; margin-bottom: 8px;';
+            
+            // Добавляем кнопку обновления
+            const refreshBtn = document.createElement('button');
+            refreshBtn.className = 'refresh-btn';
+            refreshBtn.innerHTML = '🔄';
+            refreshBtn.title = 'Обновить';
+            refreshBtn.onclick = (e) => {
+                e.stopPropagation();
+                refreshFileTree();
+            };
+            headerDiv.appendChild(refreshBtn);
+            fileTree.appendChild(headerDiv);
+            
+            // Рендерим дерево
+            const treeContainer = document.createElement('div');
+            treeContainer.className = 'tree-container';
+            fileTreeData.forEach(item => {
+                treeContainer.appendChild(renderFileTreeItem(item));
+            });
+            fileTree.appendChild(treeContainer);
+        }
+        
+        async function openFile(path) {
+            if (openFiles[path]) {
+                switchToTab(path);
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/files/read?file_path=${encodeURIComponent(path)}`);
+                const data = await response.json();
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                
+                openFiles[path] = {
+                    content: data.content,
+                    language: data.language,
+                    modified: false
+                };
+                
+                createTab(path);
+                switchToTab(path);
+            } catch (e) {
+                console.error('Ошибка открытия файла:', e);
+            }
+        }
+        
+        function createTab(path) {
+            const fileName = path.split(/[/\\]/).pop();
+            const tab = document.createElement('div');
+            tab.className = 'tab';
+            tab.id = `tab-${path}`;
+            tab.innerHTML = `${fileName} <span class="close" onclick="closeTab('${path}', event)">×</span>`;
+            tab.onclick = () => switchToTab(path);
+            tabs.appendChild(tab);
+        }
+        
+        function switchToTab(path) {
+            activeTab = path;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(`tab-${path}`).classList.add('active');
+            
+            const file = openFiles[path];
+            editor.setValue(file.content);
+            editor.setOption('mode', getLanguageMode(file.language));
+            document.getElementById('saveBtn').style.display = file.modified ? 'block' : 'none';
+            
+            // Обновляем размер редактора
+            setTimeout(() => {
+                editor.refresh();
+            }, 50);
+        }
+        
+        function updateTabTitle(path) {
+            const fileName = path.split(/[/\\]/).pop();
+            const tab = document.getElementById(`tab-${path}`);
+            if (tab) {
+                tab.innerHTML = `${fileName}* <span class="close" onclick="closeTab('${path}', event)">×</span>`;
+            }
+        }
+        
+        async function saveFile() {
+            if (!activeTab || !openFiles[activeTab].modified) return;
+            
+            try {
+                const response = await fetch('/api/files/write', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        path: activeTab,
+                        content: editor.getValue()
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    openFiles[activeTab].modified = false;
+                    const fileName = activeTab.split(/[/\\]/).pop();
+                    document.getElementById(`tab-${activeTab}`).innerHTML = `${fileName} <span class="close" onclick="closeTab('${activeTab}', event)">×</span>`;
+                    document.getElementById('saveBtn').style.display = 'none';
+                    
+                    // Показываем уведомление
+                    if (typeof ToastManager !== 'undefined') {
+                        ToastManager.success('Файл успешно сохранен');
+                    } else {
+                        alert('Файл сохранен');
+                    }
+                } else {
+                    const errorMsg = 'Ошибка сохранения: ' + data.error;
+                    if (typeof ToastManager !== 'undefined') {
+                        ToastManager.error(errorMsg);
+                    } else {
+                        alert(errorMsg);
+                    }
+                }
+            } catch (e) {
+                const errorMsg = 'Ошибка: ' + e;
+                if (typeof ToastManager !== 'undefined') {
+                    ToastManager.error(errorMsg);
+                } else {
+                    alert(errorMsg);
+                }
+            }
+        }
+        
+        function closeTab(path, event) {
+            event.stopPropagation();
+            if (openFiles[path].modified) {
+                if (!confirm('Файл изменен. Закрыть без сохранения?')) return;
+            }
+            delete openFiles[path];
+            document.getElementById(`tab-${path}`).remove();
+            if (activeTab === path) {
+                activeTab = null;
+                editor.setValue('');
+            }
+        }
+        
+        function getLanguageMode(lang) {
+            const modes = {
+                'python': 'python',
+                'javascript': 'javascript',
+                'html': 'htmlmixed',
+                'css': 'css'
+            };
+            return modes[lang] || 'text';
+        }
+        
+        function clearChat() {
+            const chatMessages = document.getElementById('chatMessages');
+            if (!chatMessages) return;
+            
+            if (confirm('Очистить историю чата?')) {
+                chatMessages.innerHTML = '';
+                chatMessages.scrollTop = 0;
+            }
+        }
+        
+        async function sendMessage() {
+            const chatInput = document.getElementById('chatInput');
+            const chatMessages = document.getElementById('chatMessages');
+            if (!chatInput || !chatMessages) return;
+            
+            const message = chatInput.value.trim();
+            if (!message) return;
+            
+            const sendBtn = document.getElementById('sendBtn');
+            if (!sendBtn) return;
+            
+            sendBtn.disabled = true;
+            sendBtn.textContent = '⏳ Отправка...';
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'chat-message';
+            messageDiv.innerHTML = `<strong>Вы:</strong> ${escapeHtml(message)}`;
+            chatMessages.appendChild(messageDiv);
+            chatInput.value = '';
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            let context = '';
+            if (activeTab) {
+                context = `\n\nТекущий файл: ${activeTab}\n\`\`\`\n${editor.getValue()}\n\`\`\``;
+            }
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({prompt: message + context, stream: true})
+                });
+                
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let aiResponse = '';
+                accumulatedContent = '';
+                
+                const aiMessageDiv = document.createElement('div');
+                aiMessageDiv.className = 'chat-message';
+                aiMessageDiv.innerHTML = '<strong>AI:</strong> ';
+                chatMessages.appendChild(aiMessageDiv);
+                const aiContent = aiMessageDiv;
+                
+                while (true) {
+                    const {done, value} = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            if (data === '[DONE]') break;
+                            try {
+                                const json = JSON.parse(data);
+                                if (json.content) {
+                                    aiResponse += json.content;
+                                    accumulatedContent += json.content;
+                                    // Рендерим markdown
+                                    if (typeof MarkdownProcessor !== 'undefined') {
+                                        aiContent.innerHTML = `<strong>AI:</strong> ${MarkdownProcessor.parse(accumulatedContent)}`;
+                                        // Подсвечиваем код
+                                        MarkdownProcessor.highlightCode(aiContent);
+                                        // Добавляем кнопки копирования
+                                        if (typeof ClipboardManager !== 'undefined') {
+                                            aiContent.querySelectorAll('pre').forEach(pre => {
+                                                ClipboardManager.showCopyButton(pre);
+                                            });
+                                        }
+                                    } else {
+                                        aiContent.innerHTML = `<strong>AI:</strong> ${escapeHtml(accumulatedContent)}`;
+                                    }
+                                    // Автопрокрутка вниз
+                                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                }
+                // Финальная прокрутка
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                // Восстанавливаем кнопку
+                sendBtn.disabled = false;
+                sendBtn.textContent = '📤 Отправить';
+                
+                // Попытка применить код
+                applyCodeFromResponse(aiResponse);
+                accumulatedContent = '';
+            } catch (e) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'chat-message';
+                errorDiv.style.color = 'var(--error)';
+                errorDiv.innerHTML = `<strong>Ошибка:</strong> ${escapeHtml(e.message)}`;
+                chatMessages.appendChild(errorDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                sendBtn.disabled = false;
+                sendBtn.textContent = '📤 Отправить';
+            }
+        }
+        
+        function clearChat() {
+            if (confirm('Очистить историю чата?')) {
+                chatMessages.innerHTML = '';
+                chatMessages.scrollTop = 0;
+            }
+        }
+        
+        // Отправка по Ctrl+Enter (инициализация внутри DOMContentLoaded)
+        
+        function applyCodeFromResponse(response) {
+            const codeMatch = response.match(/```(?:python|javascript|html|css)?\n([\s\S]*?)```/);
+            if (codeMatch && activeTab) {
+                if (confirm('Применить предложенный код?')) {
+                    editor.setValue(codeMatch[1]);
+                    openFiles[activeTab].modified = true;
+                }
+            }
+        }
+        
+        // Глобальные функции для работы с workspace (должны быть доступны из HTML)
+        function selectWorkspace() {
+            // Показываем модальное окно
+            const modal = document.getElementById('workspaceModal');
+            const currentPathText = document.getElementById('currentPathText');
+            if (modal && currentPathText) {
+                currentPathText.textContent = currentPath || '.';
+                const pathInput = document.getElementById('workspacePath');
+                if (pathInput) {
+                    pathInput.value = currentPath || '.';
+                }
+                modal.classList.add('active');
+                if (pathInput) {
+                    pathInput.focus();
+                }
+            }
+        }
+        
+        function closeWorkspaceModal() {
+            const modal = document.getElementById('workspaceModal');
+            if (modal) {
+                modal.classList.remove('active');
+            }
+        }
+        
+        async function confirmWorkspace() {
+            const pathInput = document.getElementById('workspacePath');
+            if (!pathInput) return;
+            
+            const newPath = pathInput.value.trim() || '.';
+            
+            try {
+                const response = await fetch(`/api/files/tree?root_path=${encodeURIComponent(newPath)}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('Ошибка: ' + data.error);
+                    return;
+                }
+                
+                // Успешно открыли папку
+                currentPath = data.root_path;
+                // Не сбрасываем раскрытые папки, чтобы сохранить состояние
+                loadFileTree(currentPath);
+                closeWorkspaceModal();
+                
+                // Обновляем отображение текущего пути
+                const currentPathDiv = document.getElementById('currentPath');
+                if (currentPathDiv) {
+                    currentPathDiv.textContent = `📂 ${currentPath}`;
+                    currentPathDiv.style.display = 'block';
+                }
+            } catch (e) {
+                alert('Ошибка при открытии папки: ' + e.message);
+            }
+        }
+        
+    </script>
+</body>
+</html>
+
